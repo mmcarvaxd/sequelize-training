@@ -1,20 +1,16 @@
 const {Router} = require('express')
-const {Usuario, Setor} = require('../db/models');
+const {Usuario} = require('../mongo');
 
 const app = Router()
 
 app.get('/:id', async (req, res) => {
-  const user = await Usuario.findOne({
-    where: {
-      id: req.params.id
-    }
-  })
+  const user = await Usuario.findById(req.params.id)
 
   res.json(user);
 })
 
 app.get('/', async (req, res) => {
-  const count = await Usuario.count()
+  const count = await Usuario.countDocuments()
 
   let limit = 10
   let page = 1
@@ -28,20 +24,8 @@ app.get('/', async (req, res) => {
   if(req.query.email) where.email = req.query.email
 
   try {
-    const usuarios = await Usuario.findAll({
-      include: {
-        model: Setor,
-        as: 'setor',
-        attributes: ['name'],
-        where: {
-          name: 'Qualidade'
-        }
-      },
-      where,
-      limit: limit,
-      offset: (page - 1) * limit
-    });
-
+    const usuarios = await Usuario.find(where).limit(limit).skip((page -1 ) * limit)
+    
     res.json({usuarios, total: count});
   } catch (error) {
     res.status(500).json({error: error.message})
@@ -69,16 +53,22 @@ app.put('/', async (req, res) => {
   if(req.body.setor_id) usuarioUpdate.setor_id = req.body.setor_id
 
   try {
-    await Usuario.update(usuarioUpdate, {
-      where: {
-        id: req.body.id
-      }
-    })
+    await Usuario.updateOne({
+      _id: req.body.id
+    }, usuarioUpdate)
     
     res.json(usuarioUpdate);
   } catch (error) {
     res.status(500).json({error: error.message})
   }
+})
+
+app.delete('/:id', async (req, res) => {
+  await Usuario.deleteOne({
+    _id: req.params.id
+  })
+
+  res.status(204).send()
 })
 
 module.exports = app
